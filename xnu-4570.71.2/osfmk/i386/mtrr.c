@@ -355,14 +355,6 @@ mtrr_update_action(void * cache_control_type)
 		pat &= ~(0x0FULL << 48);
 		pat |=  (0x01ULL << 48);
         }
-        else{
-            //Bronzovka: modified pat...
-            /* We change WT to WC. Leave all other entries the default values. */
-            pat != PATENTRY(0, PAT_WB) | PATENTRY(1, PAT_WC) |
-            PATENTRY(2, PAT_UCMINUS) | PATENTRY(3, PAT_UC) |
-            PATENTRY(4, PAT_WB) | PATENTRY(5, PAT_WC) |
-            PATENTRY(6, PAT_UCMINUS) | PATENTRY(7, PAT_UC);
-        }
 		wrmsr64(MSR_IA32_CR_PAT, pat);
 		DBG("CPU%d PAT: is  0x%016llx\n",
 		    get_cpu_number(), rdmsr64(MSR_IA32_CR_PAT));
@@ -700,8 +692,8 @@ pat_init(void)
 	boolean_t	istate;
 	uint64_t	pat;
 
-	if (!(cpuid_features() & CPUID_FEATURE_PAT))
-		return;
+	//if (!(cpuid_features() & CPUID_FEATURE_PAT))
+	//	return;
 
 	istate = ml_set_interrupts_enabled(FALSE);
 
@@ -714,12 +706,60 @@ pat_init(void)
 		mtrr_update_action(CACHE_CONTROL_PAT);
 	}
     } else {
-        if ((pat = PATENTRY(0, PAT_WB) | PATENTRY(1, PAT_WC) |
-            PATENTRY(2, PAT_UCMINUS) | PATENTRY(3, PAT_UC) |
-            PATENTRY(4, PAT_WB) | PATENTRY(5, PAT_WC) |
-            PATENTRY(6, PAT_UCMINUS) | PATENTRY(7, PAT_UC))) {
-            mtrr_update_action(CACHE_CONTROL_PAT);
+        if (!pat) {
+            /*
+             * No PAT. Emulate the PAT table that corresponds to the two
+             * cache bits, PWT (Write Through) and PCD (Cache Disable).
+             * This setup is also the same as the BIOS default setup.
+             *
+             * PTE encoding:
+             *
+             *       PCD
+             *       |PWT  PAT
+             *       ||    slot
+             *       00    0    WB : _PAGE_CACHE_MODE_WB
+             *       01    1    WT : _PAGE_CACHE_MODE_WT
+             *       10    2    UC-: _PAGE_CACHE_MODE_UC_MINUS
+             *       11    3    UC : _PAGE_CACHE_MODE_UC
+             *
+             * NOTE: When WC or WP is used, it is redirected to UC- per
+             * the default setup in __cachemode2pte_tbl[].
+             */
+            pat = PATENTRY(0, PAT_WB) | PATENTRY(1, PAT_WT) | PATENTRY(2, PAT_UCMINUS) | PATENTRY(3, PAT_UC) |
+            PATENTRY(4, PAT_WB) | PATENTRY(5, PAT_WT) | PATENTRY(6, PAT_UCMINUS) | PATENTRY(7, PAT_UC);
         }
+        else {
+            /*
+             * Full PAT support.  We put WT in slot 7 to improve
+             * robustness in the presence of errata that might cause
+             * the high PAT bit to be ignored.  This way, a buggy slot 7
+             * access will hit slot 3, and slot 3 is UC, so at worst
+             * we lose performance without causing a correctness issue.
+             * Pentium 4 erratum N46 is an example for such an erratum,
+             * although we try not to use PAT at all on affected CPUs.
+             *
+             *  PTE encoding:
+             *      PAT
+             *      |PCD
+             *      ||PWT  PAT
+             *      |||    slot
+             *      000    0    WB : _PAGE_CACHE_MODE_WB
+             *      001    1    WC : _PAGE_CACHE_MODE_WC
+             *      010    2    UC-: _PAGE_CACHE_MODE_UC_MINUS
+             *      011    3    UC : _PAGE_CACHE_MODE_UC
+             *      100    4    WB : Reserved
+             *      101    5    WP : _PAGE_CACHE_MODE_WP
+             *      110    6    UC-: Reserved
+             *      111    7    WT : _PAGE_CACHE_MODE_WT
+             *
+             * The reserved slots are unused, but mapped to their
+             * corresponding types in the presence of PAT errata.
+             */
+            pat = PATENTRY(0, PAT_WB) | PATENTRY(1, PAT_WC) | PATENTRY(2, PAT_UCMINUS) | PATENTRY(3, PAT_UC) |
+            PATENTRY(4, PAT_WB) | PATENTRY(5, PAT_WP) | PATENTRY(6, PAT_UCMINUS) | PATENTRY(7, PAT_WT);
+        }
+        wrmsr64(MSR_IA32_CR_PAT, pat);
+        mtrr_update_action(CACHE_CONTROL_PAT);
     }
 	ml_set_interrupts_enabled(istate);
 }
