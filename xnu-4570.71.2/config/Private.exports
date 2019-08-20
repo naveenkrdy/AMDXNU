@@ -14,6 +14,7 @@ __ZTV5IOCPU
 __ZN24IOCPUInterruptController*
 __ZNK24IOCPUInterruptController*
 __ZTV24IOCPUInterruptController
+__Z33IOSKCopyKextIdentifierWithAddressm
 _PE_i_can_has_kernel_configuration
 _add_fsevent
 _need_fsevent
