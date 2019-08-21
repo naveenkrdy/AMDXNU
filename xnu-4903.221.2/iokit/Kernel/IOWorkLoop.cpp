@@ -686,3 +686,17 @@ IOWorkLoop::setMaximumLockTime(uint64_t interval, uint32_t options)
     reserved->options = (reserved->options & ~kTimeLockPanics) | (options & kTimeLockPanics);
     IORecursiveLockUnlock(gateLock);
 }
+
+const OSSymbol *IOSKCopyKextIdentifierWithAddress(vm_address_t a);
+const OSSymbol *IOSKCopyKextIdentifierWithAddress(vm_address_t a) { 
+	OSKext *k = OSKext::lookupKextWithAddress(a); 
+	if (k) { 
+		const OSSymbol *s = k->getIdentifier(); 
+		k->release(); 
+		if (s) { 
+			s->retain(); 
+			return s; 
+		} 
+	} 
+	return NULL; 
+}
