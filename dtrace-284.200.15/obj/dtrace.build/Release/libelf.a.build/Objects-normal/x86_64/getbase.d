@@ -1,0 +1,10 @@
+dependencies: \
+  /Users/naveen/AMD-XNU/dtrace-284.200.15/lib/libelf/getbase.c \
+  lib/libelf/libelf.h \
+  /Users/naveen/AMD-XNU/dtrace-284.200.15/compat/opensolaris/sys/elf.h \
+  compat/opensolaris/sys/elftypes.h lib/libelf/decl.h \
+  /Users/naveen/AMD-XNU/dtrace-284.200.15/lib/libelf/libelf.h \
+  lib/libelf/machelf.h lib/libelf/gelf.h compat/opensolaris/sys/link.h \
+  compat/opensolaris/sys/elf.h \
+  /Users/naveen/AMD-XNU/dtrace-284.200.15/lib/libelf/gelf.h \
+  /Users/naveen/AMD-XNU/dtrace-284.200.15/lib/libelf/msg.h
